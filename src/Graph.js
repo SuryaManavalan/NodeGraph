@@ -40,23 +40,29 @@ const Graph = ({ width = 800, height = 600 }) => {
                 const nodes = Array.from({ length: 20 }, (_, i) => ({
                     id: i,
                     x: Math.random() * width,
-                    y: Math.random() * height
+                    y: Math.random() * height,
+                    linkCount: 0 // Initialize link count
                 }));
 
                 console.log("✅ Nodes Created:", nodes);
 
                 // Generate sample links
-                const links = Array.from({ length: 30 }, () => ({
-                    source: nodes[Math.floor(Math.random() * nodes.length)],
-                    target: nodes[Math.floor(Math.random() * nodes.length)]
-                })).filter(l => l.source !== l.target);
+                const links = Array.from({ length: 30 }, () => {
+                    const source = nodes[Math.floor(Math.random() * nodes.length)];
+                    const target = nodes[Math.floor(Math.random() * nodes.length)];
+                    if (source !== target) {
+                        source.linkCount++;
+                        target.linkCount++;
+                    }
+                    return { source, target };
+                }).filter(l => l.source !== l.target);
 
                 console.log("✅ Links Created:", links);
 
                 // Initialize D3 Force Simulation
                 const simulation = d3.forceSimulation(nodes)
-                    .force("charge", d3.forceManyBody().strength(-200))
-                    .force("link", d3.forceLink(links).id(d => d.id).distance(50))
+                    .force("charge", d3.forceManyBody().strength(-40))
+                    .force("link", d3.forceLink(links).id(d => d.id).distance(100))
                     .force("center", d3.forceCenter(width / 2, height / 2))
                     .on("tick", updatePositions);
 
@@ -78,7 +84,7 @@ const Graph = ({ width = 800, height = 600 }) => {
                 // Create interactive nodes using PIXI.Graphics (Circles)
                 nodes.forEach(node => {
                     const circle = new Graphics();
-                    drawNode(circle, node.x, node.y);
+                    drawNode(circle, node.x, node.y, node.linkCount);
 
                     // Enable interaction
                     circle.eventMode = "static";
@@ -104,11 +110,11 @@ const Graph = ({ width = 800, height = 600 }) => {
                     }
                 }
 
-                function onDragStart() {
+                function onDragStart(event) {
                     this.alpha = 0.5;
                     dragTarget = this;
-                    dragTarget.node.fx = this.x;
-                    dragTarget.node.fy = this.y;
+                    dragTarget.node.fx = event.global.x;
+                    dragTarget.node.fy = event.global.y;
                     app.stage.on("pointermove", onDragMove);
                 }
 
@@ -147,15 +153,16 @@ const Graph = ({ width = 800, height = 600 }) => {
                     nodesRef.current.forEach(node => {
                         if (node.circle) {
                             node.circle.clear();
-                            drawNode(node.circle, node.x, node.y);
+                            drawNode(node.circle, node.x, node.y, node.linkCount);
                         }
                     });
                 }
 
-                function drawNode(graphic, x, y) {
+                function drawNode(graphic, x, y, linkCount) {
+                    const radius = 4 + linkCount*2; // Increase radius based on link count
                     graphic.clear();
                     graphic.beginFill(0x66ccff);
-                    graphic.drawCircle(x, y, 6);
+                    graphic.drawCircle(x, y, radius);
                     graphic.endFill();
                 }
 
